@@ -10,39 +10,21 @@ def get_account_balance():
     try:
         r = accounts.AccountDetails(accountID=OANDA_ACCOUNT_ID)
         response = client.request(r)
-        balance = float(response['account']['balance'])
-        return balance
+        return float(response['account']['balance'])
     except Exception as e:
         print("Error getting account balance:", e)
         return 0
 
-def place_trade(instrument, signal, risk_percent=2, stop_loss_pips=50):
+def place_trade(instrument, signal):
     try:
-        balance = get_account_balance()
-        if balance == 0:
-            print("⚠️ Unable to retrieve account balance.")
-            return
-
-        # Calculate max risk in currency
-        max_risk_amount = balance * (risk_percent / 100)
-
-        # Estimate pip value for 1 unit (simplified for major pairs and gold)
-        pip_value_per_unit = 0.1 if "XAU" in instrument else 0.0001
-
-        # Units = max risk / (pip value * stop loss)
-        units = int(max_risk_amount / (pip_value_per_unit * stop_loss_pips))
-        if signal == "SELL":
-            units = -units
+        units = 100 if signal == "BUY" else -100
 
         order_data = {
             "order": {
                 "instrument": instrument,
                 "units": str(units),
                 "type": "MARKET",
-                "positionFill": "DEFAULT",
-                "stopLossOnFill": {
-                    "distance": str(stop_loss_pips * pip_value_per_unit)
-                }
+                "positionFill": "DEFAULT"
             }
         }
 
@@ -53,3 +35,4 @@ def place_trade(instrument, signal, risk_percent=2, stop_loss_pips=50):
 
     except V20Error as e:
         print(f"❌ OANDA ERROR on {instrument}: {e}")
+
