@@ -20,19 +20,13 @@ client = oandapyV20.API(access_token=API_KEY)
 
 # Settings
 symbols = ["XAU_USD", "EUR_USD", "GBP_USD"]
-account_balance = 100000
-risk_percent = 0.02
 sl_distance = 2.0
 tp_distance = 4.0
 
 def place_trade(symbol, signal_direction, current_price):
-    risk_amount = account_balance * risk_percent
-    units = int(risk_amount / sl_distance)
+    units = 100 if signal_direction == "BUY" else -100
 
-    if signal_direction == "SELL":
-        units = -units
-
-    # Calculate SL and TP levels
+    # SL and TP
     if units > 0:
         stop_loss_price = round(current_price - sl_distance, 3)
         take_profit_price = round(current_price + tp_distance, 3)
