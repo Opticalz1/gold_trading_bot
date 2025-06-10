@@ -1,25 +1,31 @@
 import pandas as pd
+import numpy as np
 
-def apply_indicators(df):
-    df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
-    df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
+def bollinger_squeeze_signal(df, window=20, num_std=2):
+    df = df.copy()
 
-    df['STD20'] = df['close'].rolling(window=20).std()
-    df['UpperBB'] = df['EMA20'] + (2 * df['STD20'])
-    df['LowerBB'] = df['EMA20'] - (2 * df['STD20'])
+    # Calculate Bollinger Bands
+    df['ma'] = df['close'].rolling(window=window).mean()
+    df['std'] = df['close'].rolling(window=window).std()
+    df['upper'] = df['ma'] + num_std * df['std']
+    df['lower'] = df['ma'] - num_std * df['std']
+    df['bandwidth'] = df['upper'] - df['lower']
 
-    df['BB_Width'] = df['UpperBB'] - df['LowerBB']
-    df['BB_Squeeze'] = df['BB_Width'] < df['BB_Width'].rolling(window=20).mean()
+    # Calculate squeeze (normalized bandwidth)
+    df['squeeze'] = df['bandwidth'] / df['ma']
 
-    return df
+    # Check last values
+    if len(df) < window + 5:
+        return None
 
-def get_signal(df):
-    latest = df.iloc[-1]
-    prev = df.iloc[-2]
+    recent = df.iloc[-5:]
+    last = df.iloc[-1]
 
-    if prev['BB_Squeeze'] and not latest['BB_Squeeze']:
-        if latest['close'] > latest['UpperBB'] and latest['EMA20'] > latest['EMA50']:
+    # Entry signal logic
+    if recent['squeeze'].min() < 0.01:  # low squeeze
+        if last['close'] > last['upper']:
             return "BUY"
-        elif latest['close'] < latest['LowerBB'] and latest['EMA20'] < latest['EMA50']:
+        elif last['close'] < last['lower']:
             return "SELL"
-    return "HOLD"
+
+    return None
