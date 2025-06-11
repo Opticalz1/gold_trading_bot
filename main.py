@@ -56,12 +56,13 @@ def place_trade(symbol, signal_direction, current_price):
     client.request(r)
     print(f"✅ Trade executed for {symbol}:", r.response)
 
-    send_telegram(
-        f"🚨 {signal_direction} {symbol}\n"
-        f"Size: {abs(trade_units)} units\n"
-        f"Entry: {current_price}\n"
-        f"SL: {stop_loss_price} | TP: {take_profit_price}"
-    )
+  send_telegram(
+    f"⚡️ TRADE EXECUTED ⚡️\\n"
+    f"📊 Symbol: {symbol}\\n"
+    f"🎯 Direction: {signal_direction}\\n"
+    f"💰 Entry: {current_price}\\n"
+    f"🛡 SL: {stop_loss_price} | 🎯 TP: {take_profit_price}"
+)
 
     with open("trades.csv", "a") as file:
         file.write(f"{time.ctime()},{symbol},{signal_direction},{current_price},{stop_loss_price},{take_profit_price},{units}\\n")
