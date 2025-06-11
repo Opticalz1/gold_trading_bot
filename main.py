@@ -1,7 +1,10 @@
-print("🚀 Starting multi-market trading bot with Bollinger Band Squeeze strategy...")
+# Rewriting the uploaded main.py file to use the triple-confirmation strategy with M1/M3/M5 logic
+
+main_tripleconfirm = """
+print("🚀 Starting multi-market trading bot with Triple Confirmation strategy...")
 
 from oanda_api import fetch_candles
-from strategy import bollinger_squeeze_signal
+from strategy import strategies
 from notifier import send_telegram
 
 import oandapyV20
@@ -10,6 +13,7 @@ from dotenv import load_dotenv
 import os
 import schedule
 import time
+import pandas as pd
 
 # Load credentials
 load_dotenv("config.env")
@@ -22,12 +26,15 @@ client = oandapyV20.API(access_token=API_KEY)
 symbols = ["XAU_USD", "EUR_USD", "GBP_USD"]
 sl_distance = 2.0
 tp_distance = 4.0
+units = 50
+strategy_func = strategies["TripleConfirm"]["func"]
+last_signal = {}
 
 def place_trade(symbol, signal_direction, current_price):
-    units = 100 if signal_direction == "BUY" else -100
+    trade_units = units if signal_direction == "BUY" else -units
 
     # SL and TP
-    if units > 0:
+    if trade_units > 0:
         stop_loss_price = round(current_price - sl_distance, 3)
         take_profit_price = round(current_price + tp_distance, 3)
     else:
@@ -37,7 +44,7 @@ def place_trade(symbol, signal_direction, current_price):
     order = {
         "order": {
             "instrument": symbol,
-            "units": str(units),
+            "units": str(trade_units),
             "type": "MARKET",
             "positionFill": "DEFAULT",
             "takeProfitOnFill": {"price": str(take_profit_price)},
@@ -51,29 +58,39 @@ def place_trade(symbol, signal_direction, current_price):
 
     send_telegram(
         f"🚨 {signal_direction} {symbol}\n"
-        f"Size: {abs(units)} units\n"
+        f"Size: {abs(trade_units)} units\n"
         f"Entry: {current_price}\n"
         f"SL: {stop_loss_price} | TP: {take_profit_price}"
     )
 
     with open("trades.csv", "a") as file:
-        file.write(f"{time.ctime()},{symbol},{signal_direction},{current_price},{stop_loss_price},{take_profit_price},{units}\n")
+        file.write(f"{time.ctime()},{symbol},{signal_direction},{current_price},{stop_loss_price},{take_profit_price},{units}\\n")
 
 def run_bot():
     for symbol in symbols:
-        print(f"\n🧠 Running strategy for {symbol}...")
-        df = fetch_candles(symbol=symbol, count=300, granularity="M30")
-        signal = bollinger_squeeze_signal(df)
+        print(f"\\n🧠 Running TripleConfirm for {symbol}...")
 
-        print(f"📢 {symbol} Signal:", signal)
+        try:
+            df_m1 = fetch_candles(symbol=symbol, granularity="M1", count=200)
+            df_m3 = fetch_candles(symbol=symbol, granularity="M3", count=200)
+            df_m5 = fetch_candles(symbol=symbol, granularity="M5", count=200)
 
-        if signal in ["BUY", "SELL"]:
-            current_price = df['close'].iloc[-1]
-            place_trade(symbol, signal, current_price)
-        else:
-            print(f"🟡 No trade signal for {symbol}.")
+            signal_series = strategy_func(df_m1, df_m3, df_m5)
+            signal = signal_series.dropna().iloc[-1] if not signal_series.dropna().empty else None
 
-schedule.every(30).minutes.do(run_bot)
+            print(f"📢 {symbol} Signal:", signal)
+
+            if signal in ["BUY", "SELL"] and last_signal.get(symbol) != signal:
+                current_price = df_m1['close'].iloc[-1]
+                place_trade(symbol, signal, current_price)
+                last_signal[symbol] = signal
+            else:
+                print(f"🟡 No new signal for {symbol}.")
+
+        except Exception as e:
+            print(f"❌ Error with {symbol}: {e}")
+
+schedule.every(1).minutes.do(run_bot)
 
 print("📅 Bot is running... Press CTRL+C to stop.")
 run_bot()
@@ -81,3 +98,12 @@ run_bot()
 while True:
     schedule.run_pending()
     time.sleep(1)
+"""
+
+# Save updated main.py
+path = "/mnt/data/main.py"
+with open(path, "w") as f:
+    f.write(main_tripleconfirm)
+
+path
+
